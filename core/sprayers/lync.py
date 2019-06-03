@@ -66,7 +66,7 @@ class Lync:
         return self.get_s4b_base_url(r['_links']['redirect']['href'])
 
     def get_internal_s4b_hostname(self, url):
-        r = requests.get(url)
+        r = requests.get(url, verify=False)
         return r.headers['X-MS-Server-Fqdn']
 
     # https://github.com/mdsecresearch/LyncSniper/blob/master/LyncSniper.ps1#L409
@@ -117,13 +117,15 @@ class Lync:
         if 'Invalid STS request' in msg:
             log.error(print_bad('Invalid request was received by server, dumping request & response XML'))
             log.error(soap + '\n' + r.text)
-        elif ('To sign into this application the account must be added' in msg) or ("The user account does not exist" in msg):
+        elif ('the account must be added' in msg) or ("The user account does not exist" in msg):
             log.info(print_bad(f"Authentication failed: {username}:{password} (Username does not exist)"))
         elif 'Error validating credentials' in msg:
             log.info(print_bad(f"Authentication failed: {username}:{password} (Invalid credentials)"))
         elif 'you must use multi-factor' in msg.lower():
             log.info(print_good(f"Found Credentials: {username}:{password} (However, MFA is required)"))
             self.valid_accounts.add(username)
+        elif 'No tenant-identifying information found' in msg:
+            log.info(print_bad(f"Authentication failed: {username}:{password} (No tenant-identifying information found)"))
         else:
             log.info(print_good(f"Found credentials: {username}:{password}"))
             self.valid_accounts.add(username)
@@ -140,10 +142,13 @@ class Lync:
             "password": password
         }
 
-        r = requests.post(self.lync_auth_url, data=payload)
+        r = requests.post(self.lync_auth_url, data=payload, verify=False)
         try:
             r.json()['access_token']
             log.info(print_good(f"Found credentials: {username}:{password}"))
             self.valid_accounts.add(username)
         except Exception as e:
-            log.info(print_bad(f"Invalid credentials: {username}:{password} ({e})"))
+            log.info(print_bad(f"Invalid credentials: {username}:{password}"))
+
+    def __str__(self):
+        return "lync"
