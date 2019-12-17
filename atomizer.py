@@ -1,12 +1,12 @@
-#! /bin/env python3
+#!/usr/bin/env python3
 
 """
 Usage:
-    atomizer (lync|owa) <target> <password> <userfile> [--threads THREADS] [--debug]
-    atomizer (lync|owa) <target> <passwordfile> <userfile> --interval <TIME> [--gchat <URL>] [--slack <URL>][--threads THREADS] [--debug]
-    atomizer (lync|owa) <target> --csvfile CSVFILE [--user-row-name NAME] [--pass-row-name NAME] [--threads THREADS] [--debug]
-    atomizer (lync|owa) <target> --user-as-pass USERFILE [--threads THREADS] [--debug]
-    atomizer (lync|owa) <target> --recon [--debug]
+    atomizer (lync|owa|imap) <target> <password> <userfile> [--targetPort PORT] [--threads THREADS] [--debug]
+    atomizer (lync|owa|imap) <target> <passwordfile> <userfile> --interval <TIME> [--gchat <URL>] [--slack <URL>] [--targetPort PORT][--threads THREADS] [--debug]
+    atomizer (lync|owa|imap) <target> --csvfile CSVFILE [--user-row-name NAME] [--pass-row-name NAME] [--targetPort PORT] [--threads THREADS] [--debug]
+    atomizer (lync|owa|imap) <target> --user-as-pass USERFILE [--targetPort PORT] [--threads THREADS] [--debug]
+    atomizer (lync|owa|imap) <target> --recon [--debug]
     atomizer -h | --help
     atomizer -v | --version
 
@@ -23,6 +23,7 @@ Options:
     -i, --interval TIME      spray at the specified interval [format: "H:M:S"]
     -t, --threads THREADS    number of concurrent threads to use [default: 3]
     -d, --debug              enable debug output
+    -p, --targetPort PORT    target port of the IMAP server (IMAP only) [default: 993]
     --recon                  only collect info, don't password spray
     --gchat URL              gchat webhook url for notification
     --slack URL              slack webhook url for notification
@@ -41,7 +42,7 @@ from functools import partial
 from pathlib import Path
 from docopt import docopt
 from core.utils.messages import *
-from core.sprayers import Lync, OWA
+from core.sprayers import Lync, OWA, IMAP
 from core.utils.time import countdown_timer, get_utc_time
 from core.webhooks import gchat, slack
 
@@ -74,6 +75,12 @@ class Atomizer:
     def owa(self):
         self.sprayer = OWA(
             target=self.target
+        )
+
+    def imap(self, port):
+        self.sprayer = IMAP(
+            target=self.target,
+            port=port
         )
 
     async def atomize(self, userfile, password):
@@ -130,6 +137,13 @@ class Atomizer:
     def shutdown(self):
         self.sprayer.shutdown()
 
+def add_handlers(loop, callback):
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, callback)
+
+def remove_handlers(loop):
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.remove_signal_handler(sig)
 
 if __name__ == "__main__":
     args = docopt(__doc__, version="1.0.0dev")
@@ -155,10 +169,11 @@ if __name__ == "__main__":
         atomizer.lync()
     elif args['owa']:
         atomizer.owa()
+    elif args['imap']:
+        atomizer.imap(args['--targetPort'])
 
     if not args['--recon']:
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(sig, atomizer.shutdown)
+        add_handlers(loop, atomizer.shutdown)
 
         if args['--interval']:
             popped_accts = 0
@@ -183,7 +198,10 @@ if __name__ == "__main__":
 
                             password = passwordfile.readline()
                             if password:
-                                countdown_timer(*args['--interval'].split(':'))
+                                remove_handlers(loop) # Intercept signals.
+                                # Wait for next interval and abort if the user hits Ctrl-C.
+                                if not countdown_timer(*args['--interval'].split(':')): break
+                                add_handlers(loop, atomizer.shutdown)
 
         elif args['<userfile>']:
             with open(args['<userfile>']) as userfile:

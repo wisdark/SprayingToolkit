@@ -17,6 +17,16 @@ A set of Python scripts/utilities that *tries* to make password spraying attacks
   </a>
 </p>
 
+## Installation
+
+Install the pre-requisites with `pip3` as follows:
+
+```bash
+sudo -H pip3 install -r requirements.txt
+```
+
+Or use a Python virtual environment if you don't want to install the packages globally.
+
 ## Tool Overview
 
 ### Atomizer
@@ -26,11 +36,11 @@ A blazing fast password sprayer for Lync/Skype For Business and OWA, built on As
 #### Usage
 ```
 Usage:
-    atomizer (lync|owa) <target> <password> <userfile> [--threads THREADS] [--debug]
-    atomizer (lync|owa) <target> <passwordfile> <userfile> --interval <TIME> [--gchat <URL>] [--slack <URL>][--threads THREADS] [--debug]
-    atomizer (lync|owa) <target> --csvfile CSVFILE [--user-row-name NAME] [--pass-row-name NAME] [--threads THREADS] [--debug]
-    atomizer (lync|owa) <target> --user-as-pass USERFILE [--threads THREADS] [--debug]
-    atomizer (lync|owa) <target> --recon [--debug]
+    atomizer (lync|owa|imap) <target> <password> <userfile> [--targetPort PORT] [--threads THREADS] [--debug]
+    atomizer (lync|owa|imap) <target> <passwordfile> <userfile> --interval <TIME> [--gchat <URL>] [--slack <URL>] [--targetPort PORT][--threads THREADS] [--debug]
+    atomizer (lync|owa|imap) <target> --csvfile CSVFILE [--user-row-name NAME] [--pass-row-name NAME] [--targetPort PORT] [--threads THREADS] [--debug]
+    atomizer (lync|owa|imap) <target> --user-as-pass USERFILE [--targetPort PORT] [--threads THREADS] [--debug]
+    atomizer (lync|owa|imap) <target> --recon [--debug]
     atomizer -h | --help
     atomizer -v | --version
 
@@ -47,6 +57,7 @@ Options:
     -i, --interval TIME      spray at the specified interval [format: "H:M:S"]
     -t, --threads THREADS    number of concurrent threads to use [default: 3]
     -d, --debug              enable debug output
+    -p, --targetPort PORT    target port of the IMAP server (IMAP only) [default: 993]
     --recon                  only collect info, don't password spray
     --gchat URL              gchat webhook url for notification
     --slack URL              slack webhook url for notification
@@ -58,27 +69,27 @@ Options:
 #### Examples
 
 ```bash
-python atomizer.py owa contoso.com 'Fall2018' emails.txt
+./atomizer.py owa contoso.com 'Fall2018' emails.txt
 ```
 
 ```bash
-python atomizer.py lync contoso.com 'Fall2018' emails.txt
+./atomizer.py lync contoso.com 'Fall2018' emails.txt
 ```
 
 ```bash
-python atomizer lync contoso.com --csvfile accounts.csv
+./atomizer lync contoso.com --csvfile accounts.csv
 ```
 
 ```bash
-python atomizer lync contoso.com --user-as-pass usernames.txt
+./atomizer lync contoso.com --user-as-pass usernames.txt
 ```
 
 ```bash
-python atomizer owa 'https://owa.contoso.com/autodiscover/autodiscover.xml' --recon
+./atomizer owa 'https://owa.contoso.com/autodiscover/autodiscover.xml' --recon
 ```
 
 ```bash
-python atomizer.py owa contoso.com passwords.txt emails.txt -i 0:45:00 --gchat <GCHAT_WEBHOOK_URL>
+./atomizer.py owa contoso.com passwords.txt emails.txt -i 0:45:00 --gchat <GCHAT_WEBHOOK_URL>
 ```
 
 ### Vaporizer
@@ -148,5 +159,5 @@ cat names.txt | ./spindrift.py --domain CONTOSO
 Reads names from `names.txt`, `--target` dynamically grabs the internal domain name from OWA (you can give it a domain or url)
 
 ```bash
-python spindrift.py names.txt --target contoso.com
+./spindrift.py names.txt --target contoso.com
 ```
